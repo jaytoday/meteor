@@ -1,8 +1,8 @@
 Package.describe({
-  summary: "Automatically publish the entire database to all clients"
+  summary: "(For prototyping only) Publish the entire database to all clients",
+  version: '1.0.8',
 });
 
-Package.on_use(function (api, where) {
-  api.use('livedata', 'server');
-  api.add_files("autopublish.js", "server");
-});
+// This package is empty; its presence is detected by several other packages
+// (such as ddp-server and mongo) which check for the presence of
+// Package.autopublish.

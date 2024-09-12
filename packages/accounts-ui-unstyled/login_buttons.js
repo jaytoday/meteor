@@ -1,172 +1,158 @@
-(function () {
-  if (!Accounts._loginButtons)
-    Accounts._loginButtons = {};
+import { passwordSignupFields } from './accounts_ui.js';
 
-  // for convenience
-  var loginButtonsSession = Accounts._loginButtonsSession;
+// for convenience
+const loginButtonsSession = Accounts._loginButtonsSession;
 
-  Handlebars.registerHelper(
-    "loginButtons",
-    function (options) {
-      if (options.hash.align === "right")
-        return new Handlebars.SafeString(Template._loginButtons({align: "right"}));
-      else
-        return new Handlebars.SafeString(Template._loginButtons({align: "left"}));
-    });
+// shared between dropdown and single mode
+Template.loginButtons.events({
+  'click #login-buttons-logout': () =>
+    Meteor.logout(() => loginButtonsSession.closeDropdown()),
+});
 
-  // shared between dropdown and single mode
-  Template._loginButtons.events({
-    'click #login-buttons-logout': function() {
-      Meteor.logout(function () {
-        loginButtonsSession.closeDropdown();
-      });
-    }
-  });
+Template.registerHelper('loginButtons', () => {
+  throw new Error("Use {{> loginButtons}} instead of {{loginButtons}}");
+});
 
-  Template._loginButtons.preserve({
-    'input[id]': Spark._labelFromIdOrName
-  });
+//
+// helpers
+//
 
-  //
-  // loginButtonLoggedOut template
-  //
+export const displayName = () => {
+  const user = Meteor.user();
+  if (!user)
+    return '';
 
-  Template._loginButtonsLoggedOut.dropdown = function () {
-    return Accounts._loginButtons.dropdown();
-  };
+  if (user.profile && user.profile.name)
+    return user.profile.name;
+  if (user.username)
+    return user.username;
+  if (user.emails && user.emails[0] && user.emails[0].address)
+    return user.emails[0].address;
 
-  Template._loginButtonsLoggedOut.services = function () {
-    return Accounts._loginButtons.getLoginServices();
-  };
+  return '';
+};
 
-  Template._loginButtonsLoggedOut.singleService = function () {
-    var services = Accounts._loginButtons.getLoginServices();
+// returns an array of the login services used by this app. each
+// element of the array is an object (eg {name: 'facebook'}), since
+// that makes it useful in combination with handlebars {{#each}}.
+//
+// don't cache the output of this function: if called during startup (before
+// oauth packages load) it might not include them all.
+//
+// NOTE: It is very important to have this return password last
+// because of the way we render the different providers in
+// login_buttons_dropdown.html
+export const getLoginServices = () => {
+  // First look for OAuth services.
+  const services = Package['accounts-oauth'] ? Accounts.oauth.serviceNames() : [];
+
+  // Be equally kind to all login services. This also preserves
+  // backwards-compatibility. (But maybe order should be
+  // configurable?)
+  services.sort();
+
+  // Add password, if it's there; it must come last.
+  if (hasPasswordService())
+    services.push('password');
+
+  if (hasPasswordlessService())
+    services.push('passwordless');
+
+  return services.map(name => ({ name }));
+};
+
+export const hasPasswordService = () => !!Package['accounts-password'];
+
+export const hasPasswordlessService = () => !!Package['accounts-passwordless'];
+
+export const dropdown = () =>
+  hasPasswordService() || hasPasswordlessService() || getLoginServices().length > 1;
+
+// XXX improve these. should this be in accounts-password instead?
+//
+// XXX these will become configurable, and will be validated on
+// the server as well.
+export const validateUsername = username => {
+  if (username.length >= 3) {
+    return true;
+  } else {
+    loginButtonsSession.errorMessage("Username must be at least 3 characters long");
+    return false;
+  }
+};
+
+export const validateEmail = email => {
+  if (passwordSignupFields() === "USERNAME_AND_OPTIONAL_EMAIL" && email === '')
+    return true;
+
+  if (email.includes('@')) {
+    return true;
+  } else {
+    loginButtonsSession.errorMessage("Invalid email");
+    return false;
+  }
+};
+
+export const validatePassword = password => {
+  if (password.length >= 6) {
+    return true;
+  } else {
+    loginButtonsSession.errorMessage("Password must be at least 6 characters long");
+    return false;
+  }
+};
+
+//
+// loginButtonLoggedOut template
+//
+
+Template._loginButtonsLoggedOut.helpers({
+  dropdown,
+  services: getLoginServices,
+  singleService: () => {
+    const services = getLoginServices();
     if (services.length !== 1)
       throw new Error(
         "Shouldn't be rendering this template with more than one configured service");
     return services[0];
-  };
-
-  Template._loginButtonsLoggedOut.configurationLoaded = function () {
-    return Accounts.loginServicesConfigured();
-  };
+  },
+  configurationLoaded: () => Accounts.loginServicesConfigured(),
+});
 
 
-  //
-  // loginButtonsLoggedIn template
-  //
+//
+// loginButtonsLoggedIn template
+//
 
   // decide whether we should show a dropdown rather than a row of
   // buttons
-  Template._loginButtonsLoggedIn.dropdown = function () {
-    return Accounts._loginButtons.dropdown();
-  };
+Template._loginButtonsLoggedIn.helpers({ dropdown });
 
 
 
-  //
-  // loginButtonsLoggedInSingleLogoutButton template
-  //
+//
+// loginButtonsLoggedInSingleLogoutButton template
+//
 
-  Template._loginButtonsLoggedInSingleLogoutButton.displayName = function () {
-    return Accounts._loginButtons.displayName();
-  };
+Template._loginButtonsLoggedInSingleLogoutButton.helpers({ displayName });
 
 
 
-  //
-  // loginButtonsMessage template
-  //
+//
+// loginButtonsMessage template
+//
 
-  Template._loginButtonsMessages.errorMessage = function () {
-    return loginButtonsSession.get('errorMessage');
-  };
+Template._loginButtonsMessages.helpers({
+  errorMessage: () => loginButtonsSession.get('errorMessage'),
+});
 
-  Template._loginButtonsMessages.infoMessage = function () {
-    return loginButtonsSession.get('infoMessage');
-  };
-
-
-  //
-  // loginButtonsLoggingInPadding template
-  //
-
-  Template._loginButtonsLoggingInPadding.dropdown = function () {
-    return Accounts._loginButtons.dropdown();
-  };
+Template._loginButtonsMessages.helpers({
+  infoMessage: () => loginButtonsSession.get('infoMessage'),
+});
 
 
-  //
-  // helpers
-  //
+//
+// loginButtonsLoggingInPadding template
+//
 
-  Accounts._loginButtons.displayName = function () {
-    var user = Meteor.user();
-    if (!user)
-      return '';
-
-    if (user.profile && user.profile.name)
-      return user.profile.name;
-    if (user.username)
-      return user.username;
-    if (user.emails && user.emails[0] && user.emails[0].address)
-      return user.emails[0].address;
-
-    return '';
-  };
-
-  Accounts._loginButtons.getLoginServices = function () {
-    var ret = [];
-    // make sure to put password last, since this is how it is styled
-    // in the ui as well.
-    _.each(
-      ['facebook', 'github', 'google', 'twitter', 'weibo', 'password'],
-      function (service) {
-        if (Accounts[service])
-          ret.push({name: service});
-      });
-
-    return ret;
-  };
-
-  Accounts._loginButtons.hasPasswordService = function () {
-    return Accounts.password;
-  };
-
-  Accounts._loginButtons.dropdown = function () {
-    return Accounts._loginButtons.hasPasswordService() || Accounts._loginButtons.getLoginServices().length > 1;
-  };
-
-  // XXX improve these. should this be in accounts-password instead?
-  //
-  // XXX these will become configurable, and will be validated on
-  // the server as well.
-  Accounts._loginButtons.validateUsername = function (username) {
-    if (username.length >= 3) {
-      return true;
-    } else {
-      loginButtonsSession.errorMessage("Username must be at least 3 characters long");
-      return false;
-    }
-  };
-  Accounts._loginButtons.validateEmail = function (email) {
-    if (Accounts.ui._passwordSignupFields() === "USERNAME_AND_OPTIONAL_EMAIL" && email === '')
-      return true;
-
-    if (email.indexOf('@') !== -1) {
-      return true;
-    } else {
-      loginButtonsSession.errorMessage("Invalid email");
-      return false;
-    }
-  };
-  Accounts._loginButtons.validatePassword = function (password) {
-    if (password.length >= 6) {
-      return true;
-    } else {
-      loginButtonsSession.errorMessage("Password must be at least 6 characters long");
-      return false;
-    }
-  };
-
-})();
+Template._loginButtonsLoggingInPadding.helpers({ dropdown });

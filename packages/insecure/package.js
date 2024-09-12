@@ -1,8 +1,6 @@
 Package.describe({
-  summary: "Allow all database writes by default"
+  summary: "(For prototyping only) Allow all database writes from the client",
+  version: '1.0.8',
 });
 
-Package.on_use(function (api) {
-  api.use(['mongo-livedata']);
-  api.add_files(['insecure.js'], 'server');
-});
+// This package is empty; its presence is detected by mongo-livedata.

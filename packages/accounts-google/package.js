@@ -1,18 +1,20 @@
 Package.describe({
-  summary: "Login service for Google accounts"
+  summary: "Login service for Google accounts",
+  version: '1.4.1',
 });
 
-Package.on_use(function(api) {
+Package.onUse(api => {
+  api.use(['ecmascript']);
   api.use('accounts-base', ['client', 'server']);
-  api.use('accounts-oauth2-helper', ['client', 'server']);
-  api.use('http', ['client', 'server']);
-  api.use('templating', 'client');
+  // Export Accounts (etc) to packages using this one.
+  api.imply('accounts-base', ['client', 'server']);
+  api.use('accounts-oauth', ['client', 'server']);
+  api.use('google-oauth');
+  api.imply('google-oauth');
 
-  api.add_files(
-    ['google_configure.html', 'google_configure.js'],
-    'client');
+  // If users use accounts-ui but not google-config-ui, give them a tip.
+  api.use(['accounts-ui', 'google-config-ui'], ['client', 'server'], { weak: true });
+  api.addFiles("notice.js");
 
-  api.add_files('google_common.js', ['client', 'server']);
-  api.add_files('google_server.js', 'server');
-  api.add_files('google_client.js', 'client');
+  api.addFiles("google.js");
 });

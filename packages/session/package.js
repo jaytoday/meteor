@@ -1,30 +1,26 @@
-var path = require('path');
-
 Package.describe({
   summary: "Session variable",
-  internal: true
+  version: '1.2.2',
 });
 
-// XXX hack -- need a way to use a package at bundle time
-var _ = require(path.join('..', '..', 'packages', 'underscore', 'underscore.js'));
+Package.onUse(function (api) {
+  api.use(['ecmascript', 'reactive-dict', 'ejson'], 'client');
 
-Package.on_use(function (api, where) {
-  where = where || ['client', 'server'];
+  // Session can work with or without reload, but if reload is present
+  // it should load first so we can detect it at startup and populate
+  // the session.
+  api.use('reload', 'client', {weak: true});
 
-  api.use(['underscore', 'deps'], where);
-  // XXX what I really want to do is ensure that if 'reload' is going to
-  // be loaded, it should be loaded before 'session'. Session can work
-  // with or without reload.
-  if (where === "client" ||
-      (where instanceof Array && _.indexOf(where, "client") !== -1)) {
-    api.use("reload", "client");
-  }
-
-  api.add_files('session.js', where);
+  api.export('Session', 'client');
+  api.mainModule('session.js', 'client');
+  api.addAssets('session.d.ts', 'server');
 });
 
-Package.on_test(function (api) {
+Package.onTest(function (api) {
+  api.use('ecmascript');
   api.use('tinytest');
   api.use('session', 'client');
-  api.add_files('session_tests.js', 'client');
+  api.use('tracker');
+  api.use('mongo');
+  api.addFiles('session_tests.js', 'client');
 });

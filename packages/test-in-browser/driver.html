@@ -1,41 +1,114 @@
-<head>
-  <title>Tests</title>
-</head>
 
-<body>
-  {{> test_table}}
-</body>
+<template name="testInBrowserBody">
+  <div class="test-in-browser">
+  {{> navBar}}
+  <div class="test-results">
+    {{> uncaughtErrors}}
+    {{> failedTests}}
+    {{> testTable}}
+  </div>
+  {{> groupNav}}
+  </div>
+</template>
 
-<template name="test_table">
-  {{#if running}}
-  <div class="header in-progress">Testing in progress ...</div>
-  {{else}}
-    {{#if passed}}
-      <div class="header pass">All tests pass!
-        <span class="time">{{total_test_time}} ms</span>
+<template name="navBar">
+  <nav class="navbar navbar-dark bg-dark">
+    <a class="navbar-brand" href="#">
+        {{#if running}}
+          Testing in progress...
+        {{else}}
+          {{#if passed}}
+            All tests pass!
+          {{else}}
+            There are failures.
+          {{/if}}
+        {{/if}}
+    </a>
+    {{#unless running}}
+      <span class="navbar-text">{{total_test_time}} ms</span>
+    {{/unless}}
+    {{> progressBar}}
+  </nav>
+</template>
+
+<template name="progressBar">
+  <div id="testProgressBar" class="progress {{barOuterClass}}">
+    <span class="in-progress">Passed {{passedCount}} of {{totalCount}}</span>
+    <div class="progress-bar bg-danger" role="progressbar" style="width: {{percentFail}}%;" aria-valuenow="{{percentFail}}" aria-valuemin="0" aria-valuemax="100"></div>
+    <div class="progress-bar {{barInnerClass}}" role="progressbar" style="width: {{percentPass}}%;" aria-valuenow="{{percentPass}}" aria-valuemin="0" aria-valuemax="100"></div>
+  </div>
+</template>
+
+<template name="groupNav">
+  <nav class="navbar navbar-expand-sm navbar-dark bg-dark">
+    <ul class="navbar-nav mr-auto">
+      {{#each groupPaths}}
+        <li class="nav-item"><span class="nav-link">&nbsp;-&nbsp;</span></li>
+        <li class="nav-item"><a class="nav-link" href="#">{{name}}</a></li>
+      {{/each}}
+    </ul>
+
+    <form class="navbar-form pull-right">
+      <span id="current-client-test"></span>
+      <button class="btn btn-primary rerun">
+        {{#if rerunScheduled}}
+        Rerun scheduled...
+        {{else}}
+        Rerun
+        {{/if}}
+      </button>
+    </form>
+  </nav>
+</template>
+
+<template name="uncaughtErrors">
+  {{#if uncaughtErrors}}
+    <div class="container-fluid">
+        <div class="alert alert-danger">
+          <p>
+            <strong>WARNING:</strong> The following uncaught errors might be
+            preventing some client tests from running.
+          </p>
+          <ul>
+            {{#each uncaughtErrors}}
+              <li>{{this}}</li>
+            {{/each}}
+          </ul>
       </div>
-    {{else}}
-      <div class="header fail">There are failures.
-        <span class="time">{{total_test_time}} ms</span>
-      </div>
-    {{/if}}
+    </div>
   {{/if}}
+</template>
 
+<template name="failedTests">
+  {{#if failedTests}}
+    <div class="container-fluid">
+      <ul class="failedTests">
+        {{#each failedTests}}
+          <li>{{this}}</li>
+        {{/each}}
+      </ul>
+    </div>
+  {{/if}}
+</template>
+
+<template name="testTable">
+  <div class="container-fluid">
   <div class="test_table">
-    {{#each data}}
-      {{> test_group this}}
+    {{#each testdata}}
+      {{> test_group thisWithDep}}
     {{/each}}
+  </div>
   </div>
 </template>
 
 <template name="test_group">
   <div class="group">
-    <div class="groupname">{{name}}</div>
+    <div class="groupname"><a>{{name}}</a></div>
     {{#each tests}}
-      {{> test}}
+      {{> test thisWithDep}}
     {{/each}}
     {{#each groups}}
-      {{> test_group}}
+      {{> test_group thisWithDep}}
     {{/each}}
   </div>
 </template>
@@ -43,15 +116,15 @@
 <template name="test">
   <div class="test {{test_class}}">
     <div class="testrow">
-      <div class="testname">
-        {{#if server}}S:{{else}}C:{{/if}}
-        {{name}}
-      </div>
       <div class="teststatus">
         {{test_status_display}}
       </div>
       <div class="testtime">
         {{test_time_display}}
+      </div>
+      <div class="testname">
+        {{#if server}}S:{{else}}C:{{/if}}
+        {{name}}
       </div>
     </div>
     {{#if expanded}}

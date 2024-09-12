@@ -2,62 +2,88 @@
 
 Package.describe({
   summary: "Core Meteor environment",
-  internal: true
+  version: '2.0.0',
 });
 
-Package.register_extension(
-  "js", function (bundle, source_path, serve_path, where) {
-    bundle.add_resource({
-      type: "js",
-      path: serve_path,
-      source_file: source_path,
-      where: where
-    });
-  }
-);
+Package.registerBuildPlugin({
+  name: "basicFileTypes",
+  sources: ['plugin/basic-file-types.js']
+});
 
-Package.register_extension(
-  "css", function (bundle, source_path, serve_path, where) {
-    bundle.add_resource({
-      type: "css",
-      path: serve_path,
-      source_file: source_path,
-      where: where
-    });
-  }
-);
+Npm.depends({
+  "denque": "2.1.0"
+});
 
-Package.on_use(function (api, where) {
-  api.use('underscore', ['client', 'server']);
+Package.onUse(function (api) {
+  api.use('isobuild:compiler-plugin@1.0.0');
+  api.use('core-runtime');
 
-  api.add_files('client_environment.js', 'client');
-  api.add_files('server_environment.js', 'server');
-  api.add_files('helpers.js', ['client', 'server']);
-  api.add_files('timers.js', ['client', 'server']);
-  api.add_files('fiber_helpers.js', 'server');
+  api.export('Meteor');
+
+  api.addFiles('global.js', ['client', 'server']);
+  api.export('global');
+
+  api.addFiles('client_environment.js', 'client');
+  api.addFiles('server_environment.js', 'server');
+  // Defined by client_environment.js and server_environment.js.
+  api.export("meteorEnv");
+
+  api.addFiles('cordova_environment.js', 'web.cordova');
+  api.addFiles('helpers.js', ['client', 'server']);
+  api.addFiles('setimmediate.js', ['client', 'server']);
+  api.addFiles('timers.js', ['client', 'server']);
+  api.addFiles('errors.js', ['client', 'server']);
+  api.addFiles('asl-helpers.js', 'server');
+  api.addFiles('async_helpers.js', ['client', 'server']);
+  api.addFiles('fiber_stubs_client.js', 'client');
+  api.addFiles('asl-helpers-client.js', 'client');
+  api.addFiles('startup_client.js', ['client']);
+  api.addFiles('startup_server.js', ['server']);
+  api.addFiles('debug.js', ['client', 'server']);
+  api.addFiles('string_utils.js', ['client', 'server']);
+  api.addFiles('test_environment.js', ['client', 'server']);
 
   // dynamic variables, bindEnvironment
   // XXX move into a separate package?
-  api.use('underscore', ['client', 'server']);
-  api.add_files('dynamics_browser.js', 'client');
-  api.add_files('dynamics_nodejs.js', 'server');
+  api.addFiles('dynamics_browser.js', 'client');
+  api.addFiles('dynamics_nodejs.js', 'server');
 
   // note server before common. usually it is the other way around, but
   // in this case server must load first.
-  api.add_files('url_server.js', 'server');
-  api.add_files('url_common.js', ['client', 'server']);
+  api.addFiles('url_server.js', 'server');
+  api.addFiles('url_common.js', ['client', 'server']);
+
+  // People expect process.exit() to not swallow console output.
+  // On Windows, it sometimes does, so we fix it for all apps and packages
+  api.addFiles('flush-buffers-on-exit-in-windows.js', 'server');
+
+  api.addFiles('emitter-promise.js', 'server');
+  api.export('EmitterPromise', 'server');
+
+  api.addAssets('meteor.d.ts', 'server');
 });
 
-Package.on_test(function (api) {
-  api.use('tinytest');
+Package.onTest(function (api) {
+  api.use(['underscore', 'tinytest', 'test-helpers']);
 
-  api.add_files('client_environment_test.js', 'client');
-  api.add_files('server_environment_test.js', 'server');
+  api.addFiles('browser_environment_test.js', 'web.browser');
+  api.addFiles('client_environment_test.js', 'client');
+  api.addFiles('cordova_environment_test.js', 'web.cordova');
+  api.addFiles('server_environment_test.js', 'server');
 
-  api.add_files('helpers_test.js', ['client', 'server']);
-  api.add_files('dynamics_test.js', ['client', 'server']);
+  api.addFiles('helpers_test.js', ['client', 'server']);
+  api.addFiles('dynamics_test.js', ['client', 'server']);
 
-  api.add_files('fiber_helpers_test.js', ['server']);
+  api.addFiles('fiber_helpers_test.js', ['server']);
 
-  api.add_files('url_tests.js', ['client', 'server']);
+  api.addFiles('url_tests.js', ['client', 'server']);
+
+  api.addFiles('timers_tests.js', ['client', 'server']);
+
+  api.addFiles('debug_test.js', 'client');
+
+  api.addFiles('bare_test_setup.js', 'client', {bare: true});
+  api.addFiles('bare_tests.js', 'client');
+  //api.addFiles('asl_helpers_test.js', 'server');
+  api.addFiles('emitter-promise-tests.js', 'server');
 });

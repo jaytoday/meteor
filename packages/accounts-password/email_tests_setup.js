@@ -1,40 +1,61 @@
-(function () {
-  //
-  // a mechanism to intercept emails sent to addressing including
-  // the string "intercept", storing them in an array that can then
-  // be retrieved using the getInterceptedEmails method
-  //
-  var oldEmailSend = Email.send;
-  var interceptedEmails = {}; // (email address) -> (array of contents)
+//
+// a mechanism to intercept emails sent to addressing including
+// the string "intercept", storing them in an array that can then
+// be retrieved using the getInterceptedEmails method
+//
+const interceptedEmails = {}; // (email address) -> (array of options)
 
-  Email.send = function (options) {
-    var to = options.to;
-    if (to.indexOf('intercept') === -1) {
-      oldEmailSend(options);
-    } else {
-      if (!interceptedEmails[to])
-        interceptedEmails[to] = [];
+// add html email templates that just contain the url
+Accounts.emailTemplates.resetPassword.html =
+  Accounts.emailTemplates.enrollAccount.html =
+  Accounts.emailTemplates.verifyEmail.html = (user, url) => url;
 
-      interceptedEmails[to].push(options.text);
-    }
-  };
+// override the from address
+Accounts.emailTemplates.resetPassword.from =
+  Accounts.emailTemplates.enrollAccount.from =
+    Accounts.emailTemplates.verifyEmail.from = user => 'test@meteor.com';
 
-  Meteor.methods({
-    getInterceptedEmails: function (email) {
-      return interceptedEmails[email];
-    },
+// add a custom header to check against
+Accounts.emailTemplates.headers = {
+  'My-Custom-Header' : 'Cool'
+};
 
-    addEmailForTestAndVerify: function (email) {
-      Meteor.users.update(
-        {_id: this.userId},
-        {$push: {emails: {address: email, verified: false}}});
-      Accounts.sendVerificationEmail(this.userId, email);
-    },
+Email.hookSend(options => {
+  const { to } = options;
+  if (!to || !to.toUpperCase().includes('INTERCEPT')) {
+    return true; // go ahead and send
+  } else {
+    if (!interceptedEmails[to])
+      interceptedEmails[to] = [];
 
-    createUserOnServer: function (email) {
-      var userId = Accounts.createUser({email: email});
-      Accounts.sendEnrollmentEmail(userId);
-      return Meteor.users.findOne(userId);
-    }
-  });
-}) ();
+    interceptedEmails[to].push(options);
+    return false; // skip sending
+  }
+});
+
+Meteor.methods(
+  {
+    getInterceptedEmails:
+      email => {
+        check(email, String);
+        return interceptedEmails[email];
+      },
+
+    addEmailForTestAndVerify:
+      async email => {
+        check(email, String);
+        await Meteor.users.updateAsync(
+          { _id: Accounts.userId() },
+          { $push: { emails: { address: email, verified: false } } });
+        await Accounts.sendVerificationEmail(Accounts.userId(), email);
+      },
+
+    createUserOnServer:
+      async email => {
+        check(email, String);
+        const userId = await Accounts.createUser({ email });
+        await Accounts.sendEnrollmentEmail(userId);
+        return await Meteor.users.findOneAsync(userId);
+      }
+  }
+);

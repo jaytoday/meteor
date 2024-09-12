@@ -1,27 +1,52 @@
 Package.describe({
   summary: "Meteor's client-side datastore: a port of MongoDB to Javascript",
-  internal: true
+  version: '2.0.0',
 });
 
-Package.on_use(function (api, where) {
-  where = where || ['client', 'server'];
+Package.onUse(api => {
+  api.export('LocalCollection');
+  api.export('Minimongo');
 
-  // It would be sort of nice if minimongo didn't depend on
-  // underscore, so we could ship it separately.
-  api.use(['underscore', 'json'], where);
+  api.export('MinimongoTest', { testOnly: true });
+  api.export('MinimongoError', { testOnly: true });
 
-  api.add_files([
-    'minimongo.js',
-    'selector.js',
-    'sort.js',
-    'uuid.js',
-    'modify.js',
-    'diff.js'
-  ], where);
+  api.use([
+    // This package is used to get diff results on arrays and objects
+    'diff-sequence',
+    'ecmascript',
+    'ejson',
+    // This package is used for geo-location queries such as $near
+    'geojson-utils',
+    'id-map',
+    'mongo-id',
+    'ordered-dict',
+    'random',
+    'tracker'
+  ]);
+
+  // Make weak use of Decimal type on client
+  api.use('mongo-decimal', 'client', {weak: true});
+  api.use('mongo-decimal', 'server');
+
+  api.mainModule('minimongo_client.js', 'client');
+  api.mainModule('minimongo_server.js', 'server');
 });
 
-Package.on_test(function (api) {
-  api.use('minimongo', 'client');
-  api.use('tinytest');
-  api.add_files('minimongo_tests.js', 'client');
+Package.onTest(api => {
+  api.use('minimongo');
+  api.use([
+    'ecmascript',
+    'ejson',
+    'mongo-id',
+    'ordered-dict',
+    'random',
+    'reactive-var',
+    'test-helpers',
+    'tinytest',
+    'tracker'
+  ]);
+
+  api.addFiles('minimongo_tests.js');
+  api.addFiles('minimongo_tests_client.js', 'client');
+  api.addFiles('minimongo_tests_server.js', 'server');
 });

@@ -65,13 +65,13 @@ _.extend(ExpectationManager.prototype, {
       throw new Error("Too late to add more expectations to the test");
     self.outstanding++;
 
-    return function (/* arguments */) {
+    return async function (/* arguments */) {
       if (self.dead)
         return;
 
       if (typeof expected === "function") {
         try {
-          expected.apply({}, arguments);
+          await expected.apply({}, arguments);
         } catch (e) {
           if (self.cancel())
             self.test.exception(e);
@@ -109,24 +109,29 @@ _.extend(ExpectationManager.prototype, {
   }
 });
 
-var testAsyncMulti = function (name, funcs) {
+testAsyncMulti = function (name, funcs, { isOnly = false } = {}) {
   // XXX Tests on remote browsers are _slow_. We need a better solution.
   var timeout = 180000;
 
-  Tinytest.addAsync(name, function (test, onComplete) {
+  const addFunction = isOnly ? Tinytest.onlyAsync : Tinytest.addAsync;
+  addFunction(name, function (test, onComplete) {
     var remaining = _.clone(funcs);
+    var context = {};
+    var i = 0;
 
     var runNext = function () {
       var func = remaining.shift();
-      if (!func)
+      if (!func) {
+        delete test.extraDetails.asyncBlock;
         onComplete();
+      }
       else {
         var em = new ExpectationManager(test, function () {
-          Meteor.clearTimeout(timer);
+          clearTimeout(timer);
           runNext();
         });
 
-        var timer = Meteor.setTimeout(function () {
+        var timer = setTimeout(function () {
           if (em.cancel()) {
             test.fail({type: "timeout", message: "Async batch timed out"});
             onComplete();
@@ -134,16 +139,24 @@ var testAsyncMulti = function (name, funcs) {
           return;
         }, timeout);
 
-        try {
-          func(test, _.bind(em.expect, em));
-        } catch (exception) {
-          if (em.cancel())
+        test.extraDetails.asyncBlock = i++;
+
+        new Promise(resolve => {
+          const result = func.apply(context, [test, _.bind(em.expect, em)]);
+          if (result && typeof result.then === "function") {
+            return result.then((r) => resolve(r))
+          }
+
+          return resolve(result);
+        }).then(() => {
+          em.done();
+        }, exception => {
+          if (em.cancel()) {
             test.exception(exception);
-          Meteor.clearTimeout(timer);
-          // Because we called test.exception, we're not to call onComplete.
-          return;
-        }
-        em.done();
+            // Because we called test.exception, we're not to call onComplete.
+          }
+          clearTimeout(timer);
+        });
       }
     };
 
@@ -151,3 +164,59 @@ var testAsyncMulti = function (name, funcs) {
   });
 };
 
+// Call `fn` periodically until it returns true.  If it does, call
+// `success`.  If it doesn't before the timeout, call `failed`.
+simplePoll = function (fn, success, failed, timeout, step) {
+  timeout = timeout || 10000;
+  step = step || 100;
+  var start = (new Date()).valueOf();
+  let timeOutId;
+  var helper = function () {
+    if (fn()) {
+      success();
+      Meteor.clearTimeout(timeOutId);
+      return;
+    }
+    if (start + timeout < (new Date()).valueOf()) {
+      failed();
+      Meteor.clearTimeout(timeOutId);
+      return;
+    }
+    timeOutId = Meteor.setTimeout(helper, step);
+  };
+  helper();
+};
+
+pollUntil = function (expect, f, timeout, step, noFail) {
+  noFail = noFail || false;
+  step = step || 100;
+  var expectation = expect(true);
+  simplePoll(
+    f,
+    function () { expectation(true) },
+    function () { expectation(noFail) },
+    timeout,
+    step
+  );
+};
+
+/**
+ * Helper that is used on the async tests.
+ * Just run the function and assert if we have an error or not.
+ * @param fn
+ * @param test
+ * @param shouldErrorOut
+ * @returns {Promise<*>}
+ */
+runAndThrowIfNeeded = async (fn, test, shouldErrorOut) => {
+  let err, result;
+  try {
+    result = await fn();
+  } catch (e) {
+    err = e;
+  }
+
+  test[shouldErrorOut ? "isTrue" : "isFalse"](err);
+
+  return result;
+};

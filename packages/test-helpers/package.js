@@ -1,30 +1,54 @@
 Package.describe({
   summary: "Utility functions for tests",
-  internal: true
+  version: '2.0.0',
 });
 
-Package.on_use(function (api, where) {
-  where = where || ["client", "server"];
+Package.onUse(function (api) {
+  api.use([
+    'ecmascript',
+    'underscore',
+    'tracker',
+    'ejson',
+    'tinytest',
+    'random',
+    'blaze',
+  ]);
 
-  // XXX These files have various dependencies on other packages
-  // that aren't specified here. :(
-  // This package should probably get split into several packages,
-  // each with correct dependencies.
+  // XXX for connection.js. Not sure this really belongs in
+  // test-helpers. It probably would be better off in livedata. But it's
+  // unclear how to put it in livedata so that it can both be used by
+  // other package tests and not included in the non-test bundle. One
+  // idea would be to make a new separate package 'ddp-test-helpers' or
+  // the like.
+  api.use('ddp');
 
-  api.add_files('try_all_permutations.js', where);
-  api.add_files('async_multi.js', where);
-  api.add_files('event_simulation.js', where);
-  api.add_files('seeded_random.js', where);
-  api.add_files('canonicalize_html.js', where);
-  api.add_files('stub_stream.js', where);
-  api.add_files('onscreendiv.js', where);
-  api.add_files('wrappedfrag.js', where);
-  api.add_files('current_style.js', where);
-  api.add_files('reactivevar.js', where);
+
+  api.export([
+    'pollUntil', 'try_all_permutations',
+    'SeededRandom', 'clickElement', 'blurElement',
+    'focusElement', 'simulateEvent', 'getStyleProperty', 'canonicalizeHtml',
+    'renderToDiv', 'clickIt',
+    'withCallbackLogger', 'testAsyncMulti',
+    'simplePoll', 'runAndThrowIfNeeded',
+    'makeTestConnection', 'DomUtils', 'mockBehaviours', 'waitUntil']);
+
+  api.addFiles('try_all_permutations.js');
+  api.addFiles('async_multi.js');
+  api.addFiles('event_simulation.js');
+  api.addFiles('seeded_random.js');
+  api.addFiles('canonicalize_html.js');
+  api.addFiles('render_div.js');
+  api.addFiles('current_style.js');
+  api.addFiles('callback_logger.js');
+  api.addFiles('mock.js');
+  api.addFiles('wait.js');
+  api.addFiles('domutils.js', 'client');
+  api.addFiles('connection.js', 'server');
 });
 
-Package.on_test(function (api) {
+Package.onTest(function (api) {
   api.use('tinytest');
-  api.use('test-helpers');
-  api.add_files('try_all_permutations_test.js', 'client');
+  api.use(['test-helpers', 'underscore']);
+  api.addFiles('try_all_permutations_test.js', 'client');
+  api.addFiles('seeded_random_test.js');
 });

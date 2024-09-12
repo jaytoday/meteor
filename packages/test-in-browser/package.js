@@ -1,19 +1,40 @@
 Package.describe({
   summary: "Run tests interactively in the browser",
-  internal: true
+  version: '1.4.0',
+  documentation: null
 });
 
-Package.on_use(function (api) {
+Npm.depends({
+  'bootstrap': '4.3.1',
+});
 
+Package.onUse(function (api) {
+  api.use('ecmascript');
   // XXX this should go away, and there should be a clean interface
   // that tinytest and the driver both implement?
   api.use('tinytest');
 
-  api.use(['spark', 'livedata', 'templating'], 'client');
+  api.use('session');
+  api.use('reload');
 
-  api.add_files([
-    'driver.css',
+  api.use([
+    'webapp',
+    'blaze',
+    'templating',
+    'spacebars',
+    'jquery@3.0.0',
+    'ddp',
+    'tracker',
+  ], 'client');
+
+  api.addFiles([
     'driver.html',
-    'driver.js'
+    'driver.js',
+    'driver.css',
   ], "client");
+
+  api.use("random", "server");
+  api.mainModule("server.js", "server");
+
+  api.export('runTests');
 });

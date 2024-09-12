@@ -1,18 +1,19 @@
 Package.describe({
-  summary: "Login service for Sina Weibo accounts"
+  summary: "Login service for Sina Weibo accounts",
+  version: '1.4.1',
 });
 
-Package.on_use(function(api) {
+Package.onUse(api => {
+  api.use('ecmascript');
   api.use('accounts-base', ['client', 'server']);
-  api.use('accounts-oauth2-helper', ['client', 'server']);
-  api.use('http', ['client', 'server']);
-  api.use('templating', 'client');
+  // Export Accounts (etc) to packages using this one.
+  api.imply('accounts-base', ['client', 'server']);
+  api.use('accounts-oauth', ['client', 'server']);
+  api.use('weibo-oauth');
+  api.imply('weibo-oauth');
 
-  api.add_files(
-    ['weibo_configure.html', 'weibo_configure.js'],
-    'client');
+  api.use(['accounts-ui', 'weibo-config-ui'], ['client', 'server'], { weak: true });
+  api.addFiles("notice.js");
 
-  api.add_files('weibo_common.js', ['client', 'server']);
-  api.add_files('weibo_server.js', 'server');
-  api.add_files('weibo_client.js', 'client');
+  api.addFiles("weibo.js");
 });

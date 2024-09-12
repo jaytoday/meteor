@@ -1,13 +1,25 @@
 Package.describe({
-  summary: "Send email messages"
+  summary: 'Send email messages',
+  version: '3.0.0',
 });
 
-Package.on_use(function (api) {
-  api.add_files('email.js', 'server');
+Npm.depends({
+  nodemailer: '6.9.10',
+  'stream-buffers': '3.0.2',
+  '@types/nodemailer': '6.4.14',
+  'nodemailer-openpgp' : '2.2.0'
 });
 
-Package.on_test(function (api) {
+Package.onUse(function(api) {
+  api.use(['ecmascript', 'logging', 'callback-hook'], 'server');
+  api.addAssets('email.d.ts', 'server');
+  api.mainModule('email.js', 'server');
+  api.export(['Email', 'EmailInternals'], 'server');
+  api.export('EmailTest', 'server', { testOnly: true });
+});
+
+Package.onTest(function(api) {
   api.use('email', 'server');
-  api.use('tinytest');
-  api.add_files('email_tests.js', 'server');
+  api.use(['tinytest', 'ecmascript']);
+  api.addFiles('email_tests.js', 'server');
 });

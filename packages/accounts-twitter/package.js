@@ -1,18 +1,21 @@
 Package.describe({
-  summary: "Login service for Twitter accounts"
+  summary: "Login service for Twitter accounts",
+  version: '1.5.1',
 });
 
-Package.on_use(function(api) {
+Package.onUse(api => {
+  api.use('ecmascript');
   api.use('accounts-base', ['client', 'server']);
-  api.use('accounts-oauth1-helper', ['client', 'server']);
-  api.use('http', ['client', 'server']);
-  api.use('templating', 'client');
+  // Export Accounts (etc) to packages using this one.
+  api.imply('accounts-base', ['client', 'server']);
+  api.use('accounts-oauth', ['client', 'server']);
+  api.use('twitter-oauth');
+  api.imply('twitter-oauth');
 
-  api.add_files(
-    ['twitter_configure.html', 'twitter_configure.js'],
-    'client');
+  api.use('http@1.0.1', ['client', 'server']);
 
-  api.add_files('twitter_common.js', ['client', 'server']);
-  api.add_files('twitter_server.js', 'server');
-  api.add_files('twitter_client.js', 'client');
+  api.use(['accounts-ui', 'twitter-config-ui'], ['client', 'server'], { weak: true });
+  api.addFiles("notice.js");
+
+  api.addFiles("twitter.js");
 });
